@@ -1,0 +1,79 @@
+{% extends 'base.html' %} {% block title %} {% endblock title %} {% block content %}
+
+<!-- <div class="container_1">
+    <div class="card_1">
+        <h3>Upload Files</h3>
+        <div class="drop_box_1">
+            <header>
+                <h4>Select File here</h4>
+            </header>
+            <p>Files Supported: PDF, TEXT, DOC , DOCX</p>
+            <input type="file" hidden accept=".doc,.docx,.pdf" id="fileID" style="display:none;">
+            <button class="btn_1">Choose File</button>
+        </div>
+    </div>
+</div> -->
+
+{% if error %}
+<div class="alert alert-danger" role="alert">
+    {{ error }}
+</div>
+{% endif %}
+
+<div class="card">
+    <div class="card-header">
+        Upload CSV File Here:
+    </div>
+    <form method="post" enctype="multipart/form-data">
+        <div class="card-body">
+            {{ form.hidden_tag() }} {{ form.file() }} {{ form.submit() }}
+        </div>
+    </form>
+</div>
+
+
+<br>
+<br>
+
+<table id="example" class="table table-striped table-bordered" cellspacing="0" width="100%">
+    <thead>
+        <tr>
+            <th>File Name</th>
+            <th>Scraped</th>
+            <th>Deleted</th>
+            <th>Generate Report</th>
+            <th>Download</th>
+            <th>Delete</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for i in range(0, length) %}
+        <tr>
+            <div class="col col-2">
+
+            </div>
+            <div class="col col-2">
+            </div>
+            <div class="col col-2">
+            </div>
+            <td>{{ result[i][0] }}</td>
+            <td>{{ result[i][1] }}</td>
+            <td>{{ result[i][2] }}</td>
+            <td><a href="{{ url_for('generate_report', file_name=result[i][0]) }}"
+                    class="btn btn-primary generate_report">Generate Report</a></td>
+            <td>{% if result[i][1]==True and result[i][2]==False %}
+                <a href="{{ url_for('download_csv', file_name=result[i][0]) }}" class="btn btn-primary">Download CSV</a>
+                {% else %}
+                <a href="#" class="btn btn-primary disabled">Download CSV</a>
+                {% endif %}</td>
+            <td> {% if result[i][1]==False %}
+                <a href="#" class="btn btn-danger disabled">Delete</a>
+                {% else %}
+                <a href="{{ url_for('delete', file_name=result[i][0]) }}" class="btn btn-danger">Delete</a>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock content %}
