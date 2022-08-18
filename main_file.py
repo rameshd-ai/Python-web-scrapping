@@ -1,17 +1,16 @@
 import os
 import csv
 
-# from crypt import methods
 import secrets
 from flask import Flask, render_template, Response, redirect
 from werkzeug.utils import secure_filename
 from flask_mysqldb import MySQL
 from scrappy import runUrl
 
-from forms import UploadFileForm, GenerateReportForm
+from forms import UploadFileForm, ChangeWaitTimeForm
 
 app = Flask(__name__)
-app.config["SECRET_KEY"] = "ahh23h2vhvdhhjv1216722v"
+app.config["SECRET_KEY"] = "safe_key"
 app.config["UPLOAD_PATH"] = "static/files"
 app.config["BASE_DIR"] = os.path.abspath(os.path.dirname(__file__))
 
@@ -20,7 +19,7 @@ app.config["BASE_DIR"] = os.path.abspath(os.path.dirname(__file__))
 app.config["MYSQL_HOST"] = "localhost"  # localhost
 app.config["MYSQL_USER"] = "root"
 app.config["MYSQL_PASSWORD"] = ""
-app.config["MYSQL_DB"] = "wave_scrapping"
+app.config["MYSQL_DB"] = "scraper"
 
 mysql = MySQL(app)
 
@@ -74,12 +73,76 @@ def validate_csv(file):
     return True
 
 
+def failed_urls(file_name):
+
+    cur = mysql.connection.cursor()
+    cur.execute(
+        """
+            SELECT id, web_url, critical_error, contrast_error FROM scrapping_data
+            WHERE fileName = %s
+        """,
+        (file_name,),
+    )
+
+    result = []
+
+    for row in cur.fetchall():
+        if row[2] == "?" or row[3] == "?":
+            result.append((row[0], row[1]))
+
+    return result
+
+
+def get_wait_time():
+    cur = mysql.connection.cursor()
+
+    cur.execute(
+        """
+            SELECT wait_time FROM utilities
+        """
+    )
+
+    wait_time = cur.fetchone()
+    if wait_time is not None:
+        return wait_time[0]
+    else:
+        cur.execute(
+            """
+                INSERT INTO utilities (wait_time) VALUES (40)
+            """
+        )
+        mysql.connection.commit()
+        return 40
+
+
+@app.route("/change_wait_time/<int:wait_time>/")
+def change_wait_time(wait_time):
+
+    form = ChangeWaitTimeForm()
+    cur = mysql.connection.cursor()
+
+    error = None
+
+    if form.validate_on_submit():
+        wait_time = form.wait_time
+        cur.execute("UPDATE utilities SET wait_time = %s", (wait_time,))
+
+
 @app.route("/", methods=["GET", "POST"])
 def home():
     form = UploadFileForm()
     cur = mysql.connection.cursor()
 
     error = None
+
+    wait_time_form = ChangeWaitTimeForm()
+
+    if wait_time_form.validate_on_submit():
+        wait_time = wait_time_form.wait_time.data
+        cur.execute("UPDATE utilities SET wait_time = %s", (wait_time,))
+        mysql.connection.commit()
+
+    current_wait_time = get_wait_time()
 
     if form.validate_on_submit():
         file = form.file.data
@@ -107,8 +170,8 @@ def home():
         # generate_report = True
 
     cur.execute(
-        """ SELECT fileName, report_generated, deleted FROM web_url
-            GROUP BY fileName, report_generated, deleted
+        """ SELECT fileName, report_generated, deleted, max_wait_time FROM web_url
+            GROUP BY fileName, report_generated, deleted, max_wait_time
             ORDER BY report_generated
         """
     )
@@ -126,6 +189,10 @@ def home():
             temp_row[2] = True
         elif str(row[2]) == "0":
             temp_row[2] = False
+
+        count_failed_urls = len(failed_urls(temp_row[0]))
+        temp_row.append(count_failed_urls)
+
         temp.append(temp_row)
 
     result = temp
@@ -134,6 +201,8 @@ def home():
     return render_template(
         "home.html",
         form=form,
+        wait_time_form=wait_time_form,
+        current_wait_time=current_wait_time,
         result=result,
         length=len(result),
         error=error,
@@ -158,21 +227,65 @@ def delete(file_name):
     return redirect("/")
 
 
+@app.route("/generate_report_for_failed_urls/<file_name>/")
+def generate_report_for_failed_urls(file_name):
+    cur = mysql.connection.cursor()
+
+    urls = failed_urls(file_name)
+
+    wait_time = get_wait_time()
+
+    for url in urls:
+        sql_stmts = runUrl(url[1], file_name, wait_time)
+        for stmt in sql_stmts:
+            cur.execute(stmt)
+            mysql.connection.commit()
+
+    max_wait_time = get_wait_time()
+    cur.execute("UPDATE web_url SET report_generated=1 WHERE fileName=%s", (file_name,))
+
+    cur.execute(
+        "UPDATE web_url SET deleted=0, max_wait_time=GREATEST(%s, max_wait_time) WHERE fileName=%s",
+        (
+            max_wait_time,
+            file_name,
+        ),
+    )
+
+    [cur.execute("DELETE FROM scrapping_data WHERE id=%s", (row[0],)) for row in urls]
+    mysql.connection.commit()
+    cur.close()
+
+    return redirect("/")
+
+
 @app.route("/generate_report/<file_name>/")
 def generate_report(file_name):
     cur = mysql.connection.cursor()
-    cur.execute("SELECT web_urls FROM web_url WHERE fileName=%s", (file_name,))
+    cur.execute("SELECT web_urls FROM web_url WHERE fileName=%s AND report_generated=%s", (file_name,0,))
 
     urls = cur.fetchall()
     urls = [u[0] for u in urls]
 
+    wait_time = get_wait_time()
+
     for url in urls:
-        sql_stmt = runUrl(url, file_name)
-        cur.execute(sql_stmt)
+        sql_stmts = runUrl(url, file_name, wait_time)
+        for stmt in sql_stmts:
+            cur.execute(stmt)
+            max_wait_time = get_wait_time()
+            cur.execute("UPDATE web_url SET report_generated=1 WHERE fileName=%s AND web_urls=%s", (file_name,url,))
+            cur.execute(
+                "UPDATE web_url SET deleted=0, max_wait_time=%s WHERE fileName=%s AND web_urls=%s",
+                (
+                    max_wait_time,
+                    file_name,
+                    url,
+                ),
+            )
+            mysql.connection.commit()
 
-    mysql.connection.commit()
 
-    cur.execute("UPDATE web_url SET report_generated=1 WHERE fileName=%s", (file_name,))
 
     mysql.connection.commit()
     cur.close()
@@ -186,9 +299,11 @@ def download_csv(file_name):
     #     csv = fp.read()
     # csv = read_csv_file(file_name)
     cur = mysql.connection.cursor()
-    cur.execute("SELECT * FROM scrapping_data WHERE fileName=%s", (file_name,))
+    cur.execute("SELECT web_url,critical_error,contrast_error,report_link,created_at,critical_error_details FROM scrapping_data WHERE fileName=%s", (file_name,))
     column_names = [i[0] for i in cur.description]
     rows = cur.fetchall()
+
+    print(rows)
 
     csv = ""
     for col in column_names:
@@ -202,10 +317,10 @@ def download_csv(file_name):
 
     return Response(
         csv,
-        mimetype="text/csv",
+        mimetype="text/xlsx",
         headers={"Content-disposition": f"attachment; filename={file_name}"},
     )
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8000, debug=True)
+    app.run(host="0.0.0.0", port=8000, debug=False)

@@ -13,6 +13,7 @@
         
 # Installation
 1. Create a virtual environment and activate it
+2. Use schema.sql to initiate Database Structure (You should use this new schema since there were changes in the structure)
 2. Run the following command:
     pip3 install -r requirements.txt
 3. Run server:

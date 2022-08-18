@@ -137,4 +137,10 @@ $(document).ready(function() {
     $('#myModal').on('hidden.bs.modal', function(evt) {
         $('.modal .modal-body').empty();
     });
+    $("#file").change(function() {
+        var fileExtension = ['csv'];
+        if ($.inArray($(this).val().split('.').pop().toLowerCase(), fileExtension) == -1) {
+            alert("Only formats are allowed : " + fileExtension.join(', '));
+        }
+    }); 
 });

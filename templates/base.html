@@ -9,17 +9,84 @@
         integrity="sha384-gH2yIJqKdNHPEq0n4Mqa/HGKIhSkIHeL5AyhkYV8i59U5AR6csBvApHHNl/vI1Bx" crossorigin="anonymous">
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
     <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/v/bs5/dt-1.12.1/datatables.min.css" />
-
+    <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
     <title>{% block title %} {% endblock %}</title>
+    <style>
+        * {
+  font-family: Roboto;
+}
+
+h2{
+  font-weight: 100;
+  font-size: 30pt;
+  line-height: 1.3em;
+  margin: 15px 0;
+}
+
+div.message {
+  position: relative;
+  padding: 10px;
+  padding-left: 35px;
+  margin: 30px 10px;
+  box-shadow:0 2px 5px rgba(0,0,0,.3);
+  background: #BBB;
+  color: #FFF;
+  
+  -webkit-transition: all .5s ease;
+     -moz-transition: all .5s ease;
+      -ms-transition: all .5s ease;
+       -o-transition: all .5s ease;
+          transition: all .5s ease;
+}
+div.message:hover{
+  box-shadow: 0 15px 20px rgba(10,0,10,.3);
+  -webkit-filter: brightness(110%);
+}
+
+div.message:before{
+  content: '';
+  font-family: FontAwesome;
+  position: absolute;
+  display: block;
+  top: -21px;
+  left: 50%;
+  margin:0 -21px;
+  font-size: 20px;
+  line-height: 24px;
+  text-align: center;
+  width: 44px;
+  padding:10px;
+  background: inherit;
+  box-shadow:0 5px 10px rgba(0,0,0,.25);
+  color: rgba(255,255,255,.75);
+  border-radius:50%;
+  border: 2px solid transparent;
+  z-index: 2;
+}
+
+div.message.information:before{content:'\f129';}
+
+
+div.message.information{background: #39B;}
+
+
+
+    </style>
 </head>
 
 <body>
     <ul class="nav justify-content-center my-5">
         <li class="nav-item">
-            <h2 class="nav" href="#">Scraping...</h2>
+            <h2 class="nav" href="#">Wave Tool Scraping</h2>
         </li>
 
     </ul>
+    <div class="container">
+    <div class="information message">
+        <h2>Important!</h2>
+          <p>Before uploading CSV file please check if the URL accept the wave tool for ADA validation.<br>Take one ULR from your list and replace with example.com in the below example.<br> https://wave.webaim.org/report#/<b>https://www.example.com</b> </p>
+      </div>
+    </div>
     <div class="container">
 
         {% block content %}
