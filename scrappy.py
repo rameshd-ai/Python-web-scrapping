@@ -29,10 +29,11 @@ def scrapy(url, file_name, wait_time=40):
         # time.sleep(30)
 
         driver = webdriver.Chrome(ChromeDriverManager().install(), options=options)
+        
         # driver.implicitly_wait(10)
         if not wait_time:
             wait_time = 40
-
+        driver.maximize_window()
         driver.get(url)
         print(f"wating for {wait_time} seconds...")
         time.sleep(wait_time)
@@ -63,12 +64,12 @@ def scrapy(url, file_name, wait_time=40):
 
         time.sleep(5)
         critical_error_detail = []
-        critical_error_details = ''
+        critical_error_details = []
         lbs = driver.find_elements(By.XPATH,"//ul[@id='group_list_error']/li//label")
         for i in lbs:
             critical_error_detail.append(i.text)
             for x in critical_error_detail:
-                critical_error_details += x + ','
+                critical_error_details.append(x)
 
         
         cl = list(zip(critical_error, contrast_error, alerts, features))
@@ -77,13 +78,15 @@ def scrapy(url, file_name, wait_time=40):
         for b in cl:
             print("Processing....5")
             web_url = url.replace("https://wave.webaim.org/report#/", "")
+ 
             report_link = url
             title = title.replace("WAVE Report of ", "")
             critical_error = b[0]
             contrast_error = b[1]
             alerts = b[2]
             features = b[3]
-            critical_error_details = critical_error_details
+            critical_error_details = set(critical_error_details)
+            critical_error_details = list(critical_error_details)
             created_at = date.today().isoformat()
             # print(critical_error_details)
             mqry = """

@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Display Records From DB</title>
+    <style>
+        table,
+        td,
+        th {
+            border: 1px solid black;
+            word-break: break-all;
+            font-family: "sans-serif;";
+            font-size: 12px;
+            text-align: center;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th {
+            height: 50px;
+        }
+
+        tr:nth-child(even) {
+            background-color: #dddddd;
+        }
+    </style>
+</head>
+
+<body style="margin-left: 40px; margin-right: 40px;">
+    <h1 style="text-align: center;">Milestone Wave Tool Report</h1>
+    <div style="width: 100%; background-color: black; height:3px;"></div>
+    <!-- <p>The website-https://www.ibe.com/ was audited on August 01, 2022 against the latest accessibility guidelines to be conformant with Level A and Level AA of the Web Content Accessibility Guidelines version 2.1 (WCAG 2.1), as reported by the WAVE tool.</p> -->
+    <!-- <p>The entire site was tested using WAVE Web Accessibility Evaluation Tool, created by WebAIM.org, a third party authority in web accessibility. The scan identified:</p> -->
+    <p>Details of anyy critical and/or contrast errors can be found below.</p>
+    <ul>
+        <li>
+            {{errors[0]}} critical errors on {{critical_error[0]}} pages.
+        </li>
+        <li>
+            {{errors[1]}} contrast errors on {{contrast_error[0]}} pages.
+        </li>
+    </ul>
+
+    <p>The Milestone development team has been notified of these issues, and measures are being taken to correct them as
+        quickly as possible. Please connect with your Customer Success Manager if you have additional questions.</p>
+    <table>
+        <thead>
+            <tr>
+                <th width="150px">
+                    Web Url
+                </th>
+                <th width="150px">
+                    Report Link
+                </th>
+                <th width="80px">
+                    Contrast<br>Error
+                </th>
+                <th width="80px">
+                    Critical<br>Error
+                </th>
+                <th width="150px">
+                    Critical Error<br>Details
+                </th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in rows %}
+            <tr>
+                {% for item in row %}
+                    <td>
+                    {% for line in item.replace("'", '\n').replace("[", '').replace("]", '').split(',') %}
+                        {{ line }}
+                        <br />
+                    {% endfor %}
+                    <!-- <td>{{ item.replace("'", '\n').replace("[", '').replace("]", '') }}</td> -->
+                    </td>
+                {% endfor %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+
+</html>

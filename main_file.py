@@ -6,8 +6,10 @@ from flask import Flask, render_template, Response, redirect
 from werkzeug.utils import secure_filename
 from flask_mysqldb import MySQL
 from scrappy import runUrl
-
+import webbrowser
 from forms import UploadFileForm, ChangeWaitTimeForm
+from fpdf import FPDF, HTMLMixin
+import pdfkit
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = "safe_key"
@@ -22,6 +24,14 @@ app.config["MYSQL_PASSWORD"] = ""
 app.config["MYSQL_DB"] = "scraper"
 
 mysql = MySQL(app)
+
+
+path_wkhtmltopdf = r'C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe'
+config = pdfkit.configuration(wkhtmltopdf=path_wkhtmltopdf)
+
+
+class MyFPDF(FPDF, HTMLMixin):
+    pass
 
 
 def add_new_file(file_name, path):
@@ -131,8 +141,8 @@ def change_wait_time(wait_time):
 @app.route("/", methods=["GET", "POST"])
 def home():
     form = UploadFileForm()
+    FILE_TYPES = set(['csv']) ####
     cur = mysql.connection.cursor()
-
     error = None
 
     wait_time_form = ChangeWaitTimeForm()
@@ -146,27 +156,32 @@ def home():
 
     if form.validate_on_submit():
         file = form.file.data
-        file_name, file_path = save_csv_file(file)
-        data = read_csv_file(file_path)
 
-        csv_is_valid = True
+        submit_name = form.file.data.filename ###
+        if '.' in submit_name and submit_name.rsplit('.', 1)[1] in FILE_TYPES:
+            file_name, file_path = save_csv_file(file)
+            data = read_csv_file(file_path)
 
-        if len(data[0]) > 1:
-            csv_is_valid = False
+            csv_is_valid = True
 
-        if csv_is_valid:
-            for row in data:
-                cur.execute(
-                    "INSERT INTO web_url(fileName, web_urls, report_generated) values(%s, %s, %s)",
-                    (
-                        file_name,
-                        row[0],
-                        0,
-                    ),
-                )
-                mysql.connection.commit()
+            if len(data[0]) > 1:
+                csv_is_valid = False
+
+            if csv_is_valid:
+                for row in data:
+                    cur.execute(
+                        "INSERT INTO web_url(fileName, web_urls, report_generated) values(%s, %s, %s)",
+                        (
+                            file_name,
+                            row[0],
+                            0,
+                        ),
+                    )
+                    mysql.connection.commit()
         else:
-            error = "The CSV file contains more than one column"
+            form.file.errors.append('File is not an accepted format')
+        # else:
+        #     error = "The CSV file contains more than one column"
         # generate_report = True
 
     cur.execute(
@@ -303,24 +318,63 @@ def download_csv(file_name):
     column_names = [i[0] for i in cur.description]
     rows = cur.fetchall()
 
-    print(rows)
-
     csv = ""
     for col in column_names:
         csv += col + ","
     csv = csv[:-1]
     csv += "\n"
-
+    
     for row in rows:
-        csv += ",".join([str(r) for r in row])
+        print(">>>>>>>>>>>>>>>")
+        print(rows)
+        csv += ",".join([str(r).replace("'"," ").replace("[","").replace("]","") for r in row])
         csv += "\n"
 
     return Response(
         csv,
-        mimetype="text/xlsx",
+        mimetype="text/csv",
         headers={"Content-disposition": f"attachment; filename={file_name}"},
     )
 
 
+@app.route("/download_pdf/<file_name>/")
+def download_pdf(file_name):
+    cur = mysql.connection.cursor()
+    cur.execute("SELECT web_url,report_link,contrast_error,critical_error,critical_error_details FROM scrapping_data WHERE fileName=%s", (file_name,))
+    column_names = [i[0] for i in cur.description]
+    rows = cur.fetchall()
+
+    cur.execute("SELECT CEIL(SUM(critical_error)), CEIL(SUM(contrast_error)) FROM scrapping_data WHERE fileName=%s", (file_name,))
+    tmp = list(cur.fetchall())
+    errors = [int(tmp[0][0]), int(tmp[0][1])]
+
+    cur.execute("SELECT COUNT(*) FROM scrapping_data WHERE critical_error<>0 AND fileName=%s", (file_name,))
+    critical_error = list(cur.fetchall())
+    critical_error = [int(critical_error[0][0])]
+
+    cur.execute("SELECT COUNT(*) FROM scrapping_data WHERE contrast_error <>0 AND fileName=%s", (file_name,))
+    contrast_error  = list(cur.fetchall())
+    contrast_error  = [int(contrast_error [0][0])]
+
+    html = render_template(
+        "pdf.html",
+        errors=errors,
+        contrast_error =contrast_error,
+        critical_error =critical_error,
+        headers=column_names,
+        rows=rows)
+    pdf = pdfkit.from_string(html, False, configuration=config)
+    # response = make_response(pdf)
+    # response.headers["Content-Type"] = "application/pdf"
+    # response.headers["Content-Disposition"] = "inline; filename=table.pdf"
+    # return response
+    return Response(
+        pdf,
+        mimetype="application/pdf",
+        headers={"Content-disposition": f"attachment; filename=table.pdf"},
+        
+    )
+    
+    
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8000, debug=False)

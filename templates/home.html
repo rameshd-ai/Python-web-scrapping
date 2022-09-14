@@ -25,8 +25,13 @@
         Upload CSV File Here:
     </div>
     <form method="post" enctype="multipart/form-data">
+        {{ form.hidden_tag() }}
         <div class="card-body">
-            {{ form.hidden_tag() }} {{ form.file() }} {{ form.submit() }}
+            {{ form.file() }}
+            {{ form.submit() }}<br>
+            {% for error in form.file.errors %}
+            <span style="color: red;">[{{ error }}]</span>
+            {% endfor %}
         </div>
     </form>
 </div>
@@ -52,7 +57,8 @@
             <!-- <th>Deleted</th> -->
             <th>Generate Report</th>
             <th>Generate Report For Failed URLs</th>
-            <th>Download</th>
+            <th>CSV</th>
+            <th>PDF</th>
             <!-- <th>Delete</th> -->
         </tr>
     </thead>
@@ -90,6 +96,11 @@
                 {% else %}
                 <a href="#" class="btn btn-primary disabled">Download CSV</a>
                 {% endif %}</td>
+                <td>{% if result[i][1]==True and result[i][2]==False %}
+                    <a href="{{ url_for('download_pdf', file_name=result[i][0]) }}" class="btn btn-primary">Download PDF</a>
+                    {% else %}
+                    <a href="#" class="btn btn-primary disabled">Download PDF</a>
+                    {% endif %}</td>
             <td style="display: none;"> 
                 <!-- {% if result[i][1]==False %}
                 <a href="#" class="btn btn-danger disabled">Delete</a>

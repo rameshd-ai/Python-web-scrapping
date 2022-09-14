@@ -4,10 +4,8 @@ from wtforms.validators import InputRequired
 from flask_wtf.file import FileAllowed
 
 class UploadFileForm(FlaskForm):
-    file = FileField("File", validators=[InputRequired()])
-    file = FileField(
-        "File", validators=[InputRequired(), FileAllowed(["csv"], "CSV Document Only")]
-    ) 
+    # file = FileField("File", validators=[InputRequired()])
+    file = FileField("File", validators=[InputRequired(), FileAllowed(["csv"], "CSV Document Only")]) 
     submit = SubmitField("Upload File")
 
 
